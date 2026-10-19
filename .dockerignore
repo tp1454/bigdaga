@@ -1,0 +1,7 @@
+.git
+.env
+volumes/
+__pycache__/
+*.pyc
+notes/
+AGENTS.md

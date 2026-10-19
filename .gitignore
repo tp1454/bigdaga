@@ -1,0 +1,7 @@
+.env
+volumes/
+__pycache__/
+*.pyc
+.pytest_cache/
+notes/
+AGENTS.md
