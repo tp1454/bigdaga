@@ -1,20 +1,23 @@
 services:
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.6.2
+    image: confluentinc/cp-zookeeper:7.7.1
     container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SNAPSHOT_TRUST_EMPTY: "true"       
     volumes:
       - ./volumes/zookeeper-data:/var/lib/zookeeper/data
+      - ./volumes/zookeeper-log:/var/lib/zookeeper/log
     healthcheck:
       test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/2181' 2>/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [streaming]
 
   kafka:
-    image: confluentinc/cp-kafka:7.6.2
+    image: confluentinc/cp-kafka:7.7.1
     container_name: kafka
     depends_on:
       zookeeper:
@@ -40,9 +43,24 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
+    networks: [streaming]
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.1                    
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./init/kafka/create-topics.sh:/create-topics.sh:ro
+    entrypoint: ["bash", "/create-topics.sh"]
+    environment:
+      KAFKA_BROKER: kafka:29092
+    restart: "no"
+    networks: [streaming]
 
   clickhouse:
-    image: clickhouse/clickhouse-server:24.3
+    image: clickhouse/clickhouse-server:24.8
     container_name: clickhouse
     ports:
       - "${CLICKHOUSE_HTTP_PORT:-8123}:8123"
@@ -59,13 +77,14 @@ services:
       - ./volumes/clickhouse-data:/var/lib/clickhouse
       - ./init/clickhouse:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1' || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8123/ping || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [streaming]
 
   grafana:
-    image: grafana/grafana:10.4.2
+    image: grafana/grafana:11.4.2
     container_name: grafana
     depends_on:
       - clickhouse
@@ -74,10 +93,54 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      # grafana:
     volumes:
       - ./volumes/grafana-data:/var/lib/grafana
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks: [streaming]
+
+  yahoo-producer:
+    build: ./producers
+    container_name: yahoo-producer
+    restart: unless-stopped
+    command: python -m src.equities.yahoo_producer
+    environment:
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully        
+    networks: [streaming]
+
+  binance-producer:
+    build: ./producers
+    container_name: binance-producer
+    restart: unless-stopped
+    command: python -m src.crypto.binance_ws_producer
+    environment:
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully        
+    networks: [streaming]
+
+  forex-producer:
+    build: ./producers
+    container_name: forex-producer
+    restart: unless-stopped
+    command: python -m src.forex.forex_producer
+    environment:
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully        
+    networks: [streaming]
+
+networks:
+  streaming:
+    driver: bridge

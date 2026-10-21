@@ -1,0 +1,17 @@
+services:
+  kafka:
+    environment:
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"    # convenience in dev
+    ports:
+      - "29092:9092"
+
+  yahoo-producer:
+    environment:
+      SYMBOLS: "AAPL,MSFT"                        # 2 symbols = fast cycles
+      POLL_INTERVAL: "15"                         # every 15s, not 60s
+    volumes:
+      - ./producers/src:/app/src                  # hot reload: edit → restart
+
+  grafana:
+    environment:
+      GF_LOG_LEVEL: debug
