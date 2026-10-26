@@ -52,3 +52,8 @@ class SECEdgarProducer(BaseProducer):
                     log.error("SEC fetch failed for CIK %s: %s", cik, e)
             self.flush()
             time.sleep(3600)  # re-check hourly
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    SECEdgarProducer().run()

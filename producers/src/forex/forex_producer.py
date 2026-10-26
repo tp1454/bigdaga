@@ -1,4 +1,4 @@
-"""Poll FreeForexAPI for live FX rates into the forex topic."""
+"""Poll Frankfurter (ECB) for live FX rates into the forex topic."""
 
 import logging
 import time
@@ -21,19 +21,25 @@ class ForexProducer(BaseProducer):
     def run(self):
         while True:
             try:
-                url = "https://www.freeforexapi.com/api/live"
-                params = {"pairs": ",".join(PAIRS)}
-                resp = requests.get(url, params=params, timeout=10)
-                resp.raise_for_status()
-
-                for pair, data in resp.json()["rates"].items():
+                for pair in PAIRS:
+                    resp = requests.get(
+                        "https://api.frankfurter.dev/v1/latest",
+                        params={"from": pair[:3], "to": pair[3:]},
+                        timeout=10,
+                    )
+                    resp.raise_for_status()
                     self.publish(pair, {
                         "pair": pair,
                         "timestamp": int(time.time() * 1000),
-                        "rate": data["rate"],
-                        "source": "freeforexapi",
+                        "rate": resp.json()["rates"][pair[3:]],
+                        "source": "frankfurter",
                     })
                 self.flush()
             except Exception as e:
                 log.error("Forex fetch failed: %s", e)
             time.sleep(INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    ForexProducer().run()

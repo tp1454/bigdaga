@@ -44,3 +44,8 @@ class CoinGeckoProducer(BaseProducer):
             except Exception as e:
                 log.error("CoinGecko fetch failed: %s", e)
             time.sleep(INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    CoinGeckoProducer().run()

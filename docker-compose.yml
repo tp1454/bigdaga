@@ -141,6 +141,54 @@ services:
         condition: service_completed_successfully        
     networks: [streaming]
 
+  coingecko-producer:
+    build: ./producers
+    container_name: coingecko-producer
+    restart: unless-stopped
+    command: python -m src.crypto.coingecko_producer
+    environment:
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully        
+    networks: [streaming]
+
+  sec-edgar-producer:
+    build: ./producers
+    container_name: sec-edgar-producer
+    restart: unless-stopped
+    command: python -m src.equities.sec_edgar_producer
+    environment:
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully        
+    networks: [streaming]
+
+  bls-producer:
+    build: ./producers
+    container_name: bls-producer
+    restart: unless-stopped
+    command: python -m src.macro.bls_producer
+    environment:
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully        
+    networks: [streaming]
+
+  treasury-producer:
+    build: ./producers
+    container_name: treasury-producer
+    restart: unless-stopped
+    command: python -m src.macro.treasury_producer
+    environment:
+      KAFKA_BROKER: kafka:29092
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully        
+    networks: [streaming]
+
 networks:
   streaming:
     driver: bridge

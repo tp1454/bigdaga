@@ -37,13 +37,22 @@ class BLSProducer(BaseProducer):
                 for series in resp.json()["Results"]["series"]:
                     series_id = series["seriesID"]
                     for point in series["data"]:
+                        value = point["value"]
+                        period = point["period"]
+                        if value == "-" or period == "M13" or not period.startswith("M"):
+                            continue
                         self.publish(series_id, {
                             "indicator": SERIES.get(series_id, series_id),
-                            "timestamp": f"{point['year']}-{point['period'][1:]}-01",
-                            "value": float(point["value"]),
+                            "timestamp": f"{point['year']}-{period[1:]}-01",
+                            "value": float(value),
                             "source": "bls",
                         })
                 self.flush()
             except Exception as e:
                 log.error("BLS fetch failed: %s", e)
             time.sleep(INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    BLSProducer().run()

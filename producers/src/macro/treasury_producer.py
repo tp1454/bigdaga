@@ -40,3 +40,8 @@ class TreasuryProducer(BaseProducer):
             except Exception as e:
                 log.error("Treasury fetch failed: %s", e)
             time.sleep(INTERVAL_SECONDS)
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    TreasuryProducer().run()

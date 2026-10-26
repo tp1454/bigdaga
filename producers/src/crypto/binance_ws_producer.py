@@ -22,17 +22,21 @@ class BinanceProducer(BaseProducer):
         """Callback fired on every trade event from Binance."""
         if msg.get("e") != "trade":
             return
-        data = msg["data"]
-        self.publish(data["s"], {
-            "symbol": data["s"],
-            "timestamp": data["T"],
-            "price": float(data["p"]),
-            "quantity": float(data["q"]),
-            "trade_id": data["t"],
+        self.publish(msg["s"], {
+            "symbol": msg["s"],
+            "timestamp": msg["T"],
+            "price": float(msg["p"]),
+            "quantity": float(msg["q"]),
+            "trade_id": msg["t"],
             "source": "binance",
         })
 
     def run(self):
         for symbol in SYMBOLS:
-            self.bm.start_trade_socket(symbol, self._handle_trade)
-        self.bm.join()  # blocks forever, keeps the stream alive
+            self.bm.start_trade_socket(symbol=symbol, callback=self._handle_trade)
+        self.bm.join()  # blocks until sockets close; the library auto-reconnects
+
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s")
+    BinanceProducer().run()
