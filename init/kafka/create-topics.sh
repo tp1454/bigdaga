@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BROKER="${KAFKA_BROKER:-kafka:29092}"
-TOPICS=(equities.prices crypto.trades forex.rates macro.indicators)
+TOPICS=(equities.prices crypto.trades crypto.market forex.rates macro.indicators fundamentals.filings)
 
 until kafka-topics --bootstrap-server "$BROKER" --list >/dev/null 2>&1; do
   echo "Waiting for Kafka at $BROKER..."

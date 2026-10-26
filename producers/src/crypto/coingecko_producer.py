@@ -16,7 +16,7 @@ INTERVAL_SECONDS = 300  # 5 minutes to respect free-tier limits
 
 class CoinGeckoProducer(BaseProducer):
     def __init__(self):
-        super().__init__(config.TOPIC_CRYPTO)
+        super().__init__(config.TOPIC_CRYPTO_MARKET)
 
     def run(self):
         while True:

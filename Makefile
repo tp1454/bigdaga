@@ -1,8 +1,12 @@
-.PHONY: up down logs topics ps test-topics nuke
+.PHONY: up build down logs topics feed ps test-topics nuke
 
-# Start all services
+# Start all services (add BUILD=1 to rebuild images: make up BUILD=1)
 up:
-	docker compose up -d
+	docker compose up -d $(if $(BUILD),--build)
+
+# Build images without starting
+build:
+	docker compose build
 
 # Stop all services (keeps data)
 down:
@@ -16,6 +20,10 @@ logs:
 topics:
 	docker compose exec -T kafka bash /etc/kafka/create-topics.sh
 
+# Live-tail Kafka messages (all topics; one topic: make feed TOPIC=forex.rates)
+feed:
+	@docker compose exec -T kafka kafka-console-consumer --bootstrap-server kafka:29092 $(if $(TOPIC),--topic $(TOPIC),--include '.*')
+
 # Show container status
 ps:
 	docker compose ps
@@ -26,7 +34,7 @@ test-topics:
 	@docker compose exec -T kafka kafka-topics --bootstrap-server kafka:29092 --list
 	@echo ""
 	@echo "=== Topic Stats (Partitions | Messages) ==="
-	@for t in equities.prices crypto.trades forex.rates macro.indicators fundamentals.filings; do \
+	@for t in equities.prices crypto.trades crypto.market forex.rates macro.indicators fundamentals.filings; do \
 		partitions=$$(docker compose exec -T kafka kafka-topics --bootstrap-server kafka:29092 --describe --topic $$t 2>/dev/null | head -1 | grep -o 'PartitionCount: [0-9]*' | awk '{print $$2}'); \
 		messages=$$(docker compose exec -T kafka kafka-get-offsets --bootstrap-server kafka:29092 --topic $$t 2>/dev/null | awk -F: '{sum+=$$3} END{print sum+0}'); \
 		printf "%-25s %3s partitions | %s messages\n" "$$t" "$$partitions" "$$messages"; \
