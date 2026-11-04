@@ -39,7 +39,9 @@ test-topics:
 		messages=$$(docker compose exec -T kafka kafka-get-offsets --bootstrap-server kafka:29092 --topic $$t 2>/dev/null | awk -F: '{sum+=$$3} END{print sum+0}'); \
 		printf "%-25s %3s partitions | %s messages\n" "$$t" "$$partitions" "$$messages"; \
 	done
-
+check-data:
+	@echo "=== Checking ClickHouse Data ==="
+	@docker compose exec -T clickhouse clickhouse-client --query "SELECT count() FROM analytics.equities_prices"
 # DANGER: Wipes all data, fixes permissions, and starts fresh
 nuke:
 	@echo "Stopping stack..."
