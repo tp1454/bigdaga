@@ -1,3 +1,4 @@
+import os
 # src/config.py
 
 # ==========================================
@@ -19,11 +20,12 @@ KAFKA_TOPICS = [
 # ==========================================
 # CẤU HÌNH CLICKHOUSE
 # ==========================================
-CLICKHOUSE_HOST = "clickhouse"
-CLICKHOUSE_PORT = 8123
-CLICKHOUSE_USER = "default"
-CLICKHOUSE_PASSWORD = "clickhouse" # Khớp với biến CLICKHOUSE_PASSWORD trong docker-compose
-CLICKHOUSE_DB = "analytics"
+# ClickHouse
+CLICKHOUSE_HOST = "clickhouse" # Host vẫn giữ nguyên vì gọi qua tên service Docker
+CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_HTTP_PORT", "8123"))
+CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "default")
+CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "clickhouse") # Tự động lấy từ .env
+CLICKHOUSE_DB = os.getenv("CLICKHOUSE_DB", "analytics")
 
 # Thêm dòng này nếu đề bài bắt buộc phải có biến URL
 CLICKHOUSE_URL = f"http://{CLICKHOUSE_USER}:{CLICKHOUSE_PASSWORD}@{CLICKHOUSE_HOST}:{CLICKHOUSE_PORT}/{CLICKHOUSE_DB}"

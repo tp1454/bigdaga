@@ -1,5 +1,4 @@
-.PHONY: up build down logs topics feed ps test-topics nuke
-
+.PHONY: up build down logs topics feed ps test-topics check-data nuke
 # Start all services (add BUILD=1 to rebuild images: make up BUILD=1)
 up:
 	docker compose up -d $(if $(BUILD),--build)
