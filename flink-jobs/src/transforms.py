@@ -27,26 +27,32 @@ def _to_date(s):
 # 2. HÀM XỬ LÝ ĐẶC BIỆT (1 JSON -> NHIỀU DÒNG)
 # ==========================================
 def _sec_rows(d):
-    """Flatten one SEC submission into one row per recent filing."""
     recent = d.get("filings") or {}
     accs = recent.get("accessionNumber") or []
     dates = recent.get("filingDate") or []
     forms = recent.get("form") or []
     docs = recent.get("primaryDocument") or []
     
-    # Sử dụng yield thay vì return mảng, để Flink có thể dùng flat_map
     for i, acc in enumerate(accs):
-        yield (
-            d.get("cik"), 
-            d.get("entity_name"), 
-            d.get("sic"), 
-            acc,
-            _to_date(dates[i] if i < len(dates) else None),
-            forms[i] if i < len(forms) else None,
-            docs[i] if i < len(docs) else None,
-            d.get("source"),
-        )
+        # 1. Lấy dữ liệu ngày và form
+        date_val = dates[i] if i < len(dates) else None
+        form_val = forms[i] if i < len(forms) else None
+        
+        # 2. KIỂM TRA ĐIỀU KIỆN: Nếu thiếu ngày hoặc form thì BỎ QUA dòng này luôn
+        if not date_val or not form_val:
+            continue # Nhảy sang vòng lặp tiếp theo, không yield dòng này
 
+        # 3. Nếu dữ liệu đầy đủ thì mới yield
+        yield (
+            d.get("cik") or "", 
+            d.get("entity_name") or "", 
+            d.get("sic") or "", 
+            acc,
+            _to_date(date_val),
+            form_val,
+            docs[i] if i < len(docs) else "",
+            d.get("source") or "",
+        )
 
 # ==========================================
 # 3. TỪ ĐIỂN ÁNH XẠ TOPICS (MIRROR TỪ CONSUMER)

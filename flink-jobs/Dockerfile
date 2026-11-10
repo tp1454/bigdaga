@@ -12,6 +12,6 @@ RUN wget -P /opt/flink/lib/ https://repo1.maven.org/maven2/org/apache/flink/flin
 COPY src/ /opt/flink/usrlib/src/
 
 # THÊM DÒNG NÀY ĐỂ BÁO CHO PYTHON BIẾT NƠI TÌM MODULE
-ENV PYTHONPATH="${PYTHONPATH}:/opt/flink/usrlib/src"
+ENV PYTHONPATH=PYTHONPATH/opt/flinkusrlib/src
 
 WORKDIR /opt/flink/usrlib

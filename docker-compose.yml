@@ -93,7 +93,6 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      # grafana:
     volumes:
       - ./volumes/grafana-data:/var/lib/grafana
       - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -189,33 +188,41 @@ services:
         condition: service_completed_successfully        
     networks: [streaming]
 
-  #consumer:
-#    build: ./consumers
-#    container_name: consumer
-#    restart: unless-stopped
-#    environment:
-#      KAFKA_BROKER: kafka:29092
-#      CLICKHOUSE_HOST: clickhouse
-#    depends_on:
-#      kafka-init:
-#        condition: service_completed_successfully
-#      clickhouse:
-#        condition: service_healthy
-#    networks: [streaming]
+  # ==========================================
+  # CONSUMER (Đã vô hiệu hóa để nhường chỗ cho Flink)
+  # ==========================================
+  # consumer:
+  #   build: ./consumers
+  #   container_name: consumer
+  #   restart: unless-stopped
+  #   environment:
+  #     KAFKA_BROKER: kafka:29092
+  #     CLICKHOUSE_HOST: clickhouse
+  #   depends_on:
+  #     kafka-init:
+  #       condition: service_completed_successfully
+  #     clickhouse:
+  #       condition: service_healthy
+  #   networks: [streaming]
+
   # ==========================================
   # FLINK CLUSTER
   # ==========================================
   jobmanager:
-    build: ./flink-jobs  # Sử dụng Dockerfile của bạn (để có Python và file .jar)
+    build: ./flink-jobs
     container_name: jobmanager
     ports:
       - "8081:8081"
-    # Khởi động JobManager ngầm, chờ 15s, nộp bài, rồi giữ container chạy
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      clickhouse:
+        condition: service_healthy
     command: >
       bash -c "
       /docker-entrypoint.sh jobmanager & 
-      sleep 15;
-      flink run -m localhost:8081 -py /opt/flink/usrlib/src/job_kafka_to_clickhouse.py;
+      sleep 5;
+      flink run -d -m localhost:8081 -py /opt/flink/usrlib/src/job_kafka_to_clickhouse.py --pyFiles /opt/flink/usrlib/src/transforms.py,/opt/flink/usrlib/src/config.py;
       tail -f /dev/null
       "
     environment:
@@ -224,10 +231,16 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-analytics}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:8081/jobs/overview | grep -q '\"state\":\"RUNNING\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks: [streaming]
 
   taskmanager:
-    build: ./flink-jobs  # Cũng build từ Dockerfile này để có file .jar
+    build: ./flink-jobs
     container_name: taskmanager
     depends_on:
       - jobmanager
@@ -241,11 +254,9 @@ services:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB:-analytics}
     networks: [streaming]
 
-  
 networks:
   streaming:
     driver: bridge
 
 volumes:
   clickhouse_data:
-
