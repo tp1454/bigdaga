@@ -93,7 +93,6 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      # grafana:
     volumes:
       - ./volumes/grafana-data:/var/lib/grafana
       - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -189,18 +188,70 @@ services:
         condition: service_completed_successfully        
     networks: [streaming]
 
-  consumer:
-    build: ./consumers
-    container_name: consumer
-    restart: unless-stopped
-    environment:
-      KAFKA_BROKER: kafka:29092
-      CLICKHOUSE_HOST: clickhouse
+  # ==========================================
+  # CONSUMER (Đã vô hiệu hóa để nhường chỗ cho Flink)
+  # ==========================================
+  # consumer:
+  #   build: ./consumers
+  #   container_name: consumer
+  #   restart: unless-stopped
+  #   environment:
+  #     KAFKA_BROKER: kafka:29092
+  #     CLICKHOUSE_HOST: clickhouse
+  #   depends_on:
+  #     kafka-init:
+  #       condition: service_completed_successfully
+  #     clickhouse:
+  #       condition: service_healthy
+  #   networks: [streaming]
+
+  # ==========================================
+  # FLINK CLUSTER
+  # ==========================================
+  jobmanager:
+    build: ./flink-jobs
+    container_name: jobmanager
+    ports:
+      - "8081:8081"
     depends_on:
       kafka-init:
         condition: service_completed_successfully
       clickhouse:
         condition: service_healthy
+    command: >
+      bash -c "
+      /docker-entrypoint.sh jobmanager & 
+      sleep 5;
+      flink run -d -m localhost:8081 -py /opt/flink/usrlib/src/job_kafka_to_clickhouse.py --pyFiles /opt/flink/usrlib/src/transforms.py,/opt/flink/usrlib/src/config.py;
+      tail -f /dev/null
+      "
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-analytics}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:8081/jobs/overview | grep -q '\"state\":\"RUNNING\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks: [streaming]
+
+  taskmanager:
+    build: ./flink-jobs
+    container_name: taskmanager
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    environment:
+      FLINK_PROPERTIES: |
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-analytics}
     networks: [streaming]
 
 networks:

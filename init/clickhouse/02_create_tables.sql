@@ -68,4 +68,3 @@ CREATE TABLE IF NOT EXISTS analytics.macro_indicators
 )
 ENGINE = ReplacingMergeTree(ingested_at)
 ORDER BY (source, indicator, timestamp);
-  
